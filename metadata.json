@@ -1,0 +1,6 @@
+{
+  "name": "VALIDATE",
+  "description": "Black & white minimalist landing page and interactive AI solution custom-blueprint generator for small businesses and enterprise.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
