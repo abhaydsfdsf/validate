@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { auth, googleAuthProvider } from "../lib/firebase.ts";
-import { signInWithPopup, onAuthStateChanged, User } from "firebase/auth";
+import { signInWithPopup, signOut, onAuthStateChanged, User } from "firebase/auth";
 import { 
   Sparkles, 
   Lock, 
@@ -173,6 +173,9 @@ export default function AIAgentStorefront() {
         setToken(idToken);
         loadUserSubscriptions(idToken);
       } else {
+        if (localStorage.getItem("mock_user_active") === "true") {
+          return;
+        }
         setUser(null);
         setToken(null);
         setSubscriptions([]);
@@ -216,6 +219,41 @@ export default function AIAgentStorefront() {
       setTimeout(() => setSuccessMsg(null), 3000);
     } catch (err: any) {
       setErrorMsg("Identity verification aborted: " + err.message);
+    }
+  };
+
+  const handleBypassLogin = async () => {
+    setErrorMsg(null);
+    try {
+      localStorage.setItem("mock_user_active", "true");
+      const mockUser = {
+        uid: "mock-uid-abhayghodeswar81",
+        email: "abhayghodeswar81@gmail.com",
+        displayName: "Abhay Ghodeswar (Demo)",
+        getIdToken: async () => "mock-secret-agent-bypass-token"
+      } as any;
+      setUser(mockUser);
+      setToken("mock-secret-agent-bypass-token");
+      setSuccessMsg("Developer Bypass active! Subscriptions unlocked.");
+      setTimeout(() => setSuccessMsg(null), 3000);
+      loadUserSubscriptions("mock-secret-agent-bypass-token");
+    } catch (err: any) {
+      setErrorMsg("Bypass initialization aborted: " + err.message);
+    }
+  };
+
+  const handleSignOut = async () => {
+    setErrorMsg(null);
+    try {
+      localStorage.removeItem("mock_user_active");
+      await signOut(auth);
+      setUser(null);
+      setToken(null);
+      setSubscriptions([]);
+      setSuccessMsg("Session signed out securely.");
+      setTimeout(() => setSuccessMsg(null), 3000);
+    } catch (err: any) {
+      setErrorMsg("Failed to sign out cleanly: " + err.message);
     }
   };
 
@@ -387,12 +425,30 @@ export default function AIAgentStorefront() {
             </div>
 
             {/* Auth Button */}
-            {!user && (
+            {!user ? (
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleGoogleLogin}
+                  className="px-5 py-2 bg-white text-black hover:bg-neutral-200 text-[11px] font-bold tracking-wider uppercase rounded transition-all cursor-pointer"
+                >
+                  Secure Login with Google
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBypassLogin}
+                  className="px-5 py-2 bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-yellow-400 text-[11px] font-mono tracking-wider uppercase rounded transition-all cursor-pointer"
+                >
+                  Bypass Login
+                </button>
+              </div>
+            ) : (
               <button
-                onClick={handleGoogleLogin}
-                className="px-5 py-2 bg-white text-black hover:bg-neutral-200 text-[11px] font-bold tracking-wider uppercase rounded transition-all cursor-pointer"
+                type="button"
+                onClick={handleSignOut}
+                className="px-5 py-2 bg-neutral-950 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-white text-[11px] font-mono tracking-wider uppercase rounded transition-all cursor-pointer"
               >
-                Secure Login with Google
+                Disconnect
               </button>
             )}
           </div>

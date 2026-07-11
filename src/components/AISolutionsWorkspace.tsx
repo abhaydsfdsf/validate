@@ -27,9 +27,12 @@ import {
   AlertCircle,
   ExternalLink,
   Calendar,
-  User as UserIcon
+  User as UserIcon,
+  Mail,
+  Send
 } from "lucide-react";
 import { APIProvider, Map, AdvancedMarker, Pin } from "@vis.gl/react-google-maps";
+import GmailHub from "./GmailHub";
 
 interface SavedItinerary {
   id: number;
@@ -76,7 +79,7 @@ const hasValidKey = Boolean(API_KEY) && API_KEY !== "YOUR_API_KEY" && API_KEY !=
 export default function AISolutionsWorkspace() {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"travel" | "study" | "triage" | "billing">("travel");
+  const [activeTab, setActiveTab] = useState<"travel" | "study" | "triage" | "billing" | "gmail">("travel");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -136,6 +139,7 @@ export default function AISolutionsWorkspace() {
   const [generatedBillingSubject, setGeneratedBillingSubject] = useState<string | null>(null);
   const [generatedBillingBody, setGeneratedBillingBody] = useState<string | null>(null);
   const [savedBillings, setSavedBillings] = useState<SavedBilling[]>([]);
+  const [billingGmailLoading, setBillingGmailLoading] = useState<boolean>(false);
 
   // Premium Solution Lock States
   const [isPremium, setIsPremium] = useState<boolean>(false);
@@ -283,6 +287,9 @@ export default function AISolutionsWorkspace() {
           console.error("Failed to sync authenticated profile with database:", e);
         }
       } else {
+        if (localStorage.getItem("mock_user_active") === "true") {
+          return;
+        }
         setUser(null);
         setToken(null);
         setGoogleToken(null);
@@ -356,8 +363,37 @@ export default function AISolutionsWorkspace() {
     }
   };
 
+  const handleBypassLogin = async () => {
+    setErrorMessage(null);
+    try {
+      localStorage.setItem("mock_user_active", "true");
+      const mockUser = {
+        uid: "mock-uid-abhayghodeswar81",
+        email: "abhayghodeswar81@gmail.com",
+        displayName: "Abhay Ghodeswar (Demo)",
+        getIdToken: async () => "mock-secret-agent-bypass-token"
+      } as any;
+      setUser(mockUser);
+      setToken("mock-secret-agent-bypass-token");
+      
+      // Sync
+      await fetch("/api/auth/sync", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer mock-secret-agent-bypass-token`,
+        },
+      });
+      setSuccessMessage("Developer Bypass Session successfully initiated!");
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (e: any) {
+      setErrorMessage("Bypass Login failed: " + e.message);
+    }
+  };
+
   const handleSignOut = async () => {
     try {
+      localStorage.removeItem("mock_user_active");
       await signOut(auth);
       setUser(null);
       setToken(null);
@@ -894,6 +930,166 @@ VALIDATE AI Labs`;
     }
   };
 
+  const handleDraftBillingInGmail = async () => {
+    if (!generatedBillingSubject || !generatedBillingBody) return;
+    setBillingGmailLoading(true);
+    setErrorMessage(null);
+
+    const confirmed = window.confirm("Stage this generated billing cover email as a Gmail draft?");
+    if (!confirmed) {
+      setBillingGmailLoading(false);
+      return;
+    }
+
+    const isBypass = localStorage.getItem("mock_user_active") === "true";
+
+    try {
+      let tokenToUse = googleToken;
+      if (!isBypass && !tokenToUse) {
+        const result = await signInWithPopup(auth, googleAuthProvider);
+        const credential = GoogleAuthProvider.credentialFromResult(result);
+        tokenToUse = credential?.accessToken || null;
+        if (tokenToUse) {
+          setGoogleToken(tokenToUse);
+          setToken(await result.user.getIdToken());
+        } else {
+          throw new Error("Could not acquire Gmail access token. Please authorize Gmail access.");
+        }
+      }
+
+      if (isBypass || !tokenToUse) {
+        setTimeout(() => {
+          setBillingGmailLoading(false);
+          setSuccessMessage("Simulated draft staged cleanly in your Gmail account!");
+          setTimeout(() => setSuccessMessage(null), 4000);
+        }, 1000);
+        return;
+      }
+
+      const mailLines = [
+        `Subject: ${generatedBillingSubject}`,
+        `MIME-Version: 1.0`,
+        `Content-Type: text/plain; charset=UTF-8`,
+        `Content-Transfer-Encoding: 7bit`,
+        ``,
+        generatedBillingBody
+      ].join("\r\n");
+
+      const encodedMail = btoa(unescape(encodeURIComponent(mailLines)))
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_")
+        .replace(/=+$/, "");
+
+      const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/drafts", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${tokenToUse}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          message: { raw: encodedMail }
+        })
+      });
+
+      if (!res.ok) {
+        throw new Error(`Gmail API failure: ${res.statusText}`);
+      }
+
+      setSuccessMessage("Billing Cover Draft staged successfully in your Gmail drafts folder!");
+      setTimeout(() => setSuccessMessage(null), 4000);
+    } catch (err: any) {
+      console.error("Gmail billing draft error:", err);
+      setErrorMessage("Gmail Draft creation failed: " + err.message);
+    } finally {
+      setBillingGmailLoading(false);
+    }
+  };
+
+  const handleSendBillingInGmail = async () => {
+    if (!generatedBillingSubject || !generatedBillingBody) return;
+    setBillingGmailLoading(true);
+    setErrorMessage(null);
+
+    const recipient = window.prompt("Enter recipient email address:", "client@domain.com");
+    if (recipient === null) {
+      setBillingGmailLoading(false);
+      return;
+    }
+    if (!recipient.trim()) {
+      setErrorMessage("Recipient email cannot be empty.");
+      setBillingGmailLoading(false);
+      return;
+    }
+
+    const confirmed = window.confirm(`Deliver this billing cover email directly to ${recipient}?`);
+    if (!confirmed) {
+      setBillingGmailLoading(false);
+      return;
+    }
+
+    const isBypass = localStorage.getItem("mock_user_active") === "true";
+
+    try {
+      let tokenToUse = googleToken;
+      if (!isBypass && !tokenToUse) {
+        const result = await signInWithPopup(auth, googleAuthProvider);
+        const credential = GoogleAuthProvider.credentialFromResult(result);
+        tokenToUse = credential?.accessToken || null;
+        if (tokenToUse) {
+          setGoogleToken(tokenToUse);
+          setToken(await result.user.getIdToken());
+        } else {
+          throw new Error("Could not acquire Gmail access token. Please authorize Gmail access.");
+        }
+      }
+
+      if (isBypass || !tokenToUse) {
+        setTimeout(() => {
+          setBillingGmailLoading(false);
+          setSuccessMessage(`Simulated billing cover sent successfully to ${recipient}!`);
+          setTimeout(() => setSuccessMessage(null), 4000);
+        }, 1000);
+        return;
+      }
+
+      const mailLines = [
+        `To: ${recipient}`,
+        `Subject: ${generatedBillingSubject}`,
+        `MIME-Version: 1.0`,
+        `Content-Type: text/plain; charset=UTF-8`,
+        `Content-Transfer-Encoding: 7bit`,
+        ``,
+        generatedBillingBody
+      ].join("\r\n");
+
+      const encodedMail = btoa(unescape(encodeURIComponent(mailLines)))
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_")
+        .replace(/=+$/, "");
+
+      const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${tokenToUse}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ raw: encodedMail })
+      });
+
+      if (!res.ok) {
+        throw new Error(`Gmail API failure: ${res.statusText}`);
+      }
+
+      setSuccessMessage(`Billing Cover delivered successfully to ${recipient}!`);
+      setTimeout(() => setSuccessMessage(null), 4000);
+    } catch (err: any) {
+      console.error("Gmail billing send error:", err);
+      setErrorMessage("Gmail delivery failed: " + err.message);
+    } finally {
+      setBillingGmailLoading(false);
+    }
+  };
+
   const handleSaveBilling = async () => {
     if (!token || !generatedBillingSubject || !generatedBillingBody) return;
     setSaving(true);
@@ -1014,7 +1210,7 @@ VALIDATE AI Labs`;
               )}
             </div>
           </div>
-          <div>
+          <div className="flex flex-wrap gap-2">
             {user ? (
               <button
                 onClick={handleSignOut}
@@ -1023,19 +1219,27 @@ VALIDATE AI Labs`;
                 Sign Out Node
               </button>
             ) : (
-              <button
-                onClick={handleGoogleLogin}
-                className="px-6 py-2.5 bg-white hover:bg-neutral-200 text-black text-xs font-bold tracking-wider uppercase rounded transition-all cursor-pointer flex items-center gap-2"
-              >
-                <Sparkles size={14} className="animate-spin" />
-                Sign In with Google
-              </button>
+              <>
+                <button
+                  onClick={handleGoogleLogin}
+                  className="px-6 py-2.5 bg-white hover:bg-neutral-200 text-black text-xs font-bold tracking-wider uppercase rounded transition-all cursor-pointer flex items-center gap-2"
+                >
+                  <Sparkles size={14} />
+                  Sign In with Google
+                </button>
+                <button
+                  onClick={handleBypassLogin}
+                  className="px-5 py-2.5 bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-yellow-400 text-xs font-mono font-bold tracking-wider uppercase rounded transition-all cursor-pointer"
+                >
+                  Bypass Login
+                </button>
+              </>
             )}
           </div>
         </div>
 
         {/* Tab Selection */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-6">
           <button
             onClick={() => setActiveTab("travel")}
             className={`py-3 px-4 border text-xs font-mono tracking-wider uppercase flex items-center justify-center gap-2 rounded transition-all cursor-pointer ${
@@ -1083,10 +1287,31 @@ VALIDATE AI Labs`;
             Auto Billing
             {!isPremium && <Lock size={10} className="text-yellow-500 animate-pulse ml-0.5" />}
           </button>
+          <button
+            onClick={() => setActiveTab("gmail")}
+            className={`py-3 px-4 border text-xs font-mono tracking-wider uppercase flex items-center justify-center gap-2 rounded transition-all cursor-pointer ${
+              activeTab === "gmail"
+                ? "border-white bg-white text-black font-bold"
+                : "border-neutral-900 bg-neutral-950/40 hover:border-neutral-800 text-neutral-400 hover:text-white"
+            }`}
+          >
+            <Mail size={14} />
+            Gmail Hub
+          </button>
         </div>
 
         {/* Active Tool Area */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {activeTab === "gmail" ? (
+          <div className="lg:col-span-12">
+            <GmailHub
+              googleToken={googleToken}
+              setGoogleToken={setGoogleToken}
+              setParentToken={setToken}
+              userEmail={user?.email || ""}
+            />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
           {/* Form Side (Col: 5) */}
           <div className="lg:col-span-5 bg-neutral-950 border border-white/10 p-6 rounded space-y-6">
@@ -1436,6 +1661,41 @@ VALIDATE AI Labs`;
                   </div>
                 )}
 
+                {/* Gmail Draft/Send Widget for Billing */}
+                {activeTab === "billing" && generatedBillingSubject && generatedBillingBody && (
+                  <div className="p-3 border border-emerald-500/15 bg-emerald-950/5 rounded flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-fadeIn">
+                    <div className="flex items-center gap-2">
+                      <Mail size={16} className="text-emerald-400 shrink-0" />
+                      <div>
+                        <span className="block text-[10px] font-mono font-bold text-neutral-400 uppercase tracking-widest">
+                          Stage/Send Billing via Gmail
+                        </span>
+                        <p className="text-[9px] text-neutral-500 font-mono mt-0.5">
+                          Create a draft or send this billing cover directly from your Gmail account.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 w-full sm:w-auto shrink-0">
+                      <button
+                        onClick={handleDraftBillingInGmail}
+                        disabled={billingGmailLoading}
+                        className="w-full sm:w-auto px-3 py-1.5 border border-neutral-800 hover:bg-neutral-900 text-neutral-350 text-[10px] font-mono font-bold uppercase rounded flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        {billingGmailLoading ? <Loader2 size={10} className="animate-spin" /> : <FileText size={10} />}
+                        Draft in Gmail
+                      </button>
+                      <button
+                        onClick={handleSendBillingInGmail}
+                        disabled={billingGmailLoading}
+                        className="w-full sm:w-auto px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-black text-[10px] font-mono font-bold uppercase rounded flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        {billingGmailLoading ? <Loader2 size={10} className="animate-spin" /> : <Send size={10} />}
+                        Send Email
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex justify-end">
                   <button
                     onClick={
@@ -1461,6 +1721,7 @@ VALIDATE AI Labs`;
             )}
           </div>
         </div>
+        )}
 
         {/* Travel Plan Pre-Checkout Estimator & Aggregate Cart */}
         {activeTab === "travel" && generatedItinerary && (
