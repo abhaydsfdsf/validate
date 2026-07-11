@@ -28,6 +28,7 @@ import AIAgentStorefront from "./components/AIAgentStorefront";
 import EngagementPlanner from "./components/EngagementPlanner";
 import { LiveChatWidget } from "./components/LiveChatWidget";
 import Payment from "./components/Payment";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 export default function App() {
   const [showIntro, setShowIntro] = useState(true);
@@ -980,6 +981,7 @@ export default function App() {
       )}
 
       <LiveChatWidget />
+      <SpeedInsights />
 
     </div>
   );
