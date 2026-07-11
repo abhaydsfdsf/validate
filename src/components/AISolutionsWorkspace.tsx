@@ -1124,6 +1124,97 @@ VALIDATE AI Labs`;
     }
   };
 
+  const autoSendGmailBill = async (itemName: string, itemPrice: string, leadPassenger?: string) => {
+    const recipient = user?.email || "abhayghodeswar81@gmail.com";
+    const subject = `[BILLING INVOICE] Chronos AI Transaction Confirmed - ${itemName}`;
+    const invoiceRef = `VAL-INV-${Math.floor(100000 + Math.random() * 900000)}`;
+    const billBody = `=========================================
+      VALIDATE LABS & CHRONOS AI
+          OFFICIAL INVOICE
+=========================================
+Invoice Ref: ${invoiceRef}
+Date: ${new Date().toLocaleString()}
+Account Holder: ${leadPassenger || user?.displayName || "Abhay Ghodeswar"}
+Email: ${recipient}
+
+-----------------------------------------
+ITEMS & DESCRIPTION:
+${itemName}
+- Total Charged: ${itemPrice}
+- Status: PAID IN FULL (via Secure Sandbox Node)
+-----------------------------------------
+
+Thank you for your purchase. This email is an official billing confirmation dispatched automatically via the Chronos Gmail Node Connector.
+
+Securely compiled by:
+Chronos AI Billing Pipeline Engine (v3.5)
+Validate Labs Support`;
+
+    const isBypass = localStorage.getItem("mock_user_active") === "true";
+
+    // 1. Always write to the simulated custom_gmail_emails database so it shows up in their Gmail Hub
+    const newMockMail = {
+      id: `invoice-${Date.now()}`,
+      threadId: `thread-${Date.now()}`,
+      subject: subject,
+      from: "Chronos AI Billing <billing@validate.labs>",
+      to: recipient,
+      date: new Date().toLocaleString(),
+      snippet: `Official invoice from Validate Labs: ${itemName} - Total Paid: ${itemPrice}`,
+      body: billBody,
+      unread: true
+    };
+
+    try {
+      const customEmailsStr = localStorage.getItem("custom_gmail_emails");
+      const customEmails = customEmailsStr ? JSON.parse(customEmailsStr) : [];
+      localStorage.setItem("custom_gmail_emails", JSON.stringify([newMockMail, ...customEmails]));
+    } catch (e) {
+      console.error("Local storage sync error: ", e);
+    }
+
+    // 2. Try real delivery if googleToken is active
+    if (!isBypass && googleToken) {
+      try {
+        const mailLines = [
+          `To: ${recipient}`,
+          `Subject: ${subject}`,
+          `MIME-Version: 1.0`,
+          `Content-Type: text/plain; charset=UTF-8`,
+          `Content-Transfer-Encoding: 7bit`,
+          ``,
+          billBody
+        ].join("\r\n");
+
+        const encodedMail = btoa(unescape(encodeURIComponent(mailLines)))
+          .replace(/\+/g, "-")
+          .replace(/\//g, "_")
+          .replace(/=+$/, "");
+
+        const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${googleToken}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ raw: encodedMail })
+        });
+
+        if (res.ok) {
+          setSuccessMessage(`Official invoice receipt dispatched to your Gmail: ${recipient}`);
+          setTimeout(() => setSuccessMessage(null), 5000);
+          return;
+        }
+      } catch (err) {
+        console.warn("Real Gmail delivery of automated bill failed, falling back to workspace notify: ", err);
+      }
+    }
+
+    // Fallback if not authenticated or bypass
+    setSuccessMessage(`Purchase Complete! Official bill has been dispatched to your Gmail Hub: ${recipient}`);
+    setTimeout(() => setSuccessMessage(null), 5000);
+  };
+
   return (
     <section id="workspace-section" className="w-full bg-[#050505] border-b border-white/10 py-16 px-4 md:px-8 font-sans">
       <div className="max-w-6xl mx-auto">
@@ -1330,8 +1421,7 @@ VALIDATE AI Labs`;
                 <button
                   onClick={() => {
                     setIsPremium(true);
-                    setSuccessMessage("Premium Node authorization established successfully. All solutions unlocked!");
-                    setTimeout(() => setSuccessMessage(null), 3000);
+                    autoSendGmailBill("Chronos AI Premium Node License (Monthly Starter Plan)", "₹750 / mo ($15.00)");
                   }}
                   className="w-full py-2 bg-yellow-500 hover:bg-yellow-400 text-black font-mono font-bold uppercase rounded text-[10px] flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
                 >
@@ -1934,9 +2024,9 @@ VALIDATE AI Labs`;
                       id="btn-confirm-checkout"
                       disabled={!agreedToValidatePlan || !checkoutPassenger}
                       onClick={() => {
+                        const totalCost = selectedTransportPrice + (selectedHotelPrice * parseInt(duration || "1")) + selectedSightPrice;
                         setCheckoutComplete(true);
-                        setSuccessMessage(`Plan agreement confirmed. Pre-checkout total of $${selectedTransportPrice + (selectedHotelPrice * parseInt(duration || "1")) + selectedSightPrice} compiled!`);
-                        setTimeout(() => setSuccessMessage(null), 4000);
+                        autoSendGmailBill(`Elite Travel Package to ${dest || "Destination Node"} (${duration} Days)`, `$${totalCost}`, checkoutPassenger);
                       }}
                       className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-400 disabled:bg-neutral-800 disabled:text-neutral-600 disabled:border-neutral-950 text-black font-mono font-bold text-xs uppercase tracking-wider rounded transition-colors cursor-pointer flex items-center justify-center gap-1.5"
                     >
@@ -2004,7 +2094,7 @@ VALIDATE AI Labs`;
 
                 {/* Places Scroll Area */}
                 <div className="space-y-3 max-h-[360px] overflow-y-auto pr-1">
-                  {mapPlaces.map((p) => {
+                  {mapPlaces.filter((p, index, self) => self.findIndex(item => item.id === p.id) === index).map((p) => {
                     const isSelected = selectedPlace?.id === p.id;
                     return (
                       <div 
@@ -2090,7 +2180,7 @@ VALIDATE AI Labs`;
                           internalUsageAttributionIds={['gmp_mcp_codeassist_v1_aistudio']}
                           style={{ width: "100%", height: "100%" }}
                         >
-                          {mapPlaces.map((p) => (
+                          {mapPlaces.filter((p, index, self) => self.findIndex(item => item.id === p.id) === index).map((p) => (
                             <AdvancedMarker
                               key={p.id}
                               position={{ lat: p.lat, lng: p.lng }}
@@ -2171,7 +2261,7 @@ VALIDATE AI Labs`;
                       </svg>
 
                       {/* Plot Points */}
-                      {mapPlaces.map((p) => {
+                      {mapPlaces.filter((p, index, self) => self.findIndex(item => item.id === p.id) === index).map((p) => {
                         const x = 50 + (p.lng - mapCenter.lng) * 4500;
                         const y = 50 - (p.lat - mapCenter.lat) * 4500;
                         const px = `${Math.max(10, Math.min(90, x))}%`;
@@ -2286,7 +2376,7 @@ VALIDATE AI Labs`;
                   onChange={(e) => setDistOrigin(e.target.value)}
                   className="w-full bg-black border border-neutral-800 text-[10px] text-neutral-300 py-1 px-1.5 focus:outline-none focus:border-white transition-colors"
                 >
-                  {mapPlaces.map(p => (
+                  {mapPlaces.filter((p, index, self) => self.findIndex(item => item.id === p.id) === index).map(p => (
                     <option key={p.id} value={p.id}>{p.id} - {p.name}</option>
                   ))}
                 </select>
@@ -2300,7 +2390,7 @@ VALIDATE AI Labs`;
                   onChange={(e) => setDistDest(e.target.value)}
                   className="w-full bg-black border border-neutral-800 text-[10px] text-neutral-300 py-1 px-1.5 focus:outline-none focus:border-white transition-colors"
                 >
-                  {mapPlaces.map(p => (
+                  {mapPlaces.filter((p, index, self) => self.findIndex(item => item.id === p.id) === index).map(p => (
                     <option key={p.id} value={p.id}>{p.id} - {p.name}</option>
                   ))}
                 </select>

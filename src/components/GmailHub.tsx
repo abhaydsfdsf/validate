@@ -121,10 +121,13 @@ export default function GmailHub({
     if (isBypass || !googleToken) {
       // Simulate slow network request for high-fidelity loading effect
       setTimeout(() => {
-        let filtered = MOCK_EMAILS;
+        const customEmailsStr = localStorage.getItem("custom_gmail_emails");
+        const customEmails: GmailMessage[] = customEmailsStr ? JSON.parse(customEmailsStr) : [];
+        const mergedEmails = [...customEmails, ...MOCK_EMAILS];
+        let filtered = mergedEmails;
         if (searchQuery.trim()) {
           const query = searchQuery.toLowerCase();
-          filtered = MOCK_EMAILS.filter(
+          filtered = mergedEmails.filter(
             m => m.subject.toLowerCase().includes(query) || 
                  m.snippet.toLowerCase().includes(query) || 
                  m.from.toLowerCase().includes(query)
@@ -288,6 +291,11 @@ export default function GmailHub({
           body: bodyInput,
           unread: false
         };
+
+        const customEmailsStr = localStorage.getItem("custom_gmail_emails");
+        const customEmails: GmailMessage[] = customEmailsStr ? JSON.parse(customEmailsStr) : [];
+        localStorage.setItem("custom_gmail_emails", JSON.stringify([newMock, ...customEmails]));
+
         setMessages([newMock, ...messages]);
         
         // Reset compose
@@ -527,7 +535,7 @@ export default function GmailHub({
                 <span>Your mailbox node is completely clean.</span>
               </div>
             ) : (
-              messages.map((msg) => (
+              messages.filter((msg, index, self) => self.findIndex(m => m.id === msg.id) === index).map((msg) => (
                 <button
                   key={msg.id}
                   onClick={() => setSelectedMsg(msg)}
