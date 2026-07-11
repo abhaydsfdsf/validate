@@ -1,0 +1,211 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user registered with the application.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID of the user."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Email address of the user."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp when the user was created."
+        }
+      },
+      "required": ["uid", "email"]
+    },
+    "AgentSubscription": {
+      "title": "AgentSubscription",
+      "description": "Subscribed licenses for elite node operations.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID referencing the subscriber."
+        },
+        "agentId": {
+          "type": "string",
+          "description": "Identifier of the agent solution."
+        },
+        "planName": {
+          "type": "string",
+          "description": "Subscription tier plan designation."
+        },
+        "status": {
+          "type": "string",
+          "description": "Subscription status (Active, Cancelled)."
+        },
+        "licenseKey": {
+          "type": "string",
+          "description": "Unique generated license key string."
+        },
+        "priceCharged": {
+          "type": "string",
+          "description": "Financial price charged description."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp of creation."
+        }
+      },
+      "required": ["userId", "agentId", "planName", "status", "licenseKey", "priceCharged"]
+    },
+    "TravelItinerary": {
+      "title": "TravelItinerary",
+      "description": "A compiled travel itinerary planning.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID referencing the user."
+        },
+        "destination": {
+          "type": "string",
+          "description": "Destination city name."
+        },
+        "budget": {
+          "type": "string",
+          "description": "Financial budget level."
+        },
+        "durationDays": {
+          "type": "string",
+          "description": "Number of travel days."
+        },
+        "itineraryText": {
+          "type": "string",
+          "description": "Compiled travel itinerary text."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp."
+        }
+      },
+      "required": ["userId", "destination", "budget", "durationDays", "itineraryText"]
+    },
+    "StudyPlan": {
+      "title": "StudyPlan",
+      "description": "Academic study schedule mapping.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID referencing the user."
+        },
+        "syllabus": {
+          "type": "string",
+          "description": "The syllabus or training goals."
+        },
+        "planText": {
+          "type": "string",
+          "description": "The compiled calendar-based study plan."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp."
+        }
+      },
+      "required": ["userId", "syllabus", "planText"]
+    },
+    "PatientTriage": {
+      "title": "PatientTriage",
+      "description": "Medical symptom triage report.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID referencing the creator."
+        },
+        "patientName": {
+          "type": "string",
+          "description": "The target patient's full name."
+        },
+        "symptoms": {
+          "type": "string",
+          "description": "Symptoms parsed from patient input."
+        },
+        "urgency": {
+          "type": "string",
+          "description": "Urgency categorization (Low, Medium, High)."
+        },
+        "triageDetails": {
+          "type": "string",
+          "description": "Compiled clinical advice and treatment pathways."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp."
+        }
+      },
+      "required": ["userId", "patientName", "symptoms", "urgency", "triageDetails"]
+    },
+    "EmailBilling": {
+      "title": "EmailBilling",
+      "description": "An auto-generated billing invoice.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID referencing the creator."
+        },
+        "clientName": {
+          "type": "string",
+          "description": "Client full name or company."
+        },
+        "amount": {
+          "type": "string",
+          "description": "Monetary billing invoice amount."
+        },
+        "services": {
+          "type": "string",
+          "description": "Line-item description of services."
+        },
+        "emailSubject": {
+          "type": "string",
+          "description": "Generated cover email subject."
+        },
+        "emailBody": {
+          "type": "string",
+          "description": "Generated invoice email body text."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp."
+        }
+      },
+      "required": ["userId", "clientName", "amount", "services", "emailSubject", "emailBody"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Collection of user profile info mapping records."
+    },
+    "/agentSubscriptions/{subId}": {
+      "schema": "AgentSubscription",
+      "description": "Active Node authorization subscriptions."
+    },
+    "/travelItineraries/{itineraryId}": {
+      "schema": "TravelItinerary",
+      "description": "Custom compiled travel itinerary nodes."
+    },
+    "/studyPlans/{planId}": {
+      "schema": "StudyPlan",
+      "description": "Custom compiled study plan calendar schedules."
+    },
+    "/patientTriages/{triageId}": {
+      "schema": "PatientTriage",
+      "description": "Patient clinic medical triages."
+    },
+    "/emailBillings/{billingId}": {
+      "schema": "EmailBilling",
+      "description": "Dispatched timesheet business invoices."
+    }
+  }
+}
