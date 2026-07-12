@@ -1242,9 +1242,77 @@ Validate Labs Support`;
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="mb-6 p-4 bg-red-950/40 border border-red-500/30 text-red-400 text-xs font-mono rounded"
+              className="mb-6 p-5 bg-red-950/40 border border-red-500/30 text-red-400 text-xs font-mono rounded space-y-4"
             >
-              ✦ ERROR: {errorMessage}
+              <div className="flex items-center gap-2 font-bold text-red-300">
+                <span className="text-xs">✦ ERROR: {errorMessage.toLowerCase().includes("unauthorized-domain") ? "Firebase Authentication Domain Unauthorized" : errorMessage}</span>
+              </div>
+              
+              {errorMessage.toLowerCase().includes("unauthorized-domain") && (
+                <div className="p-4 bg-black/40 border border-neutral-800 rounded space-y-3 text-neutral-300">
+                  <p className="text-[11px] leading-relaxed">
+                    This error happens because the current app's hosting domains are not listed in your Firebase project's <strong>Authorized Domains</strong> allowlist. Follow these simple steps to authorize Google Sign-In for this workspace:
+                  </p>
+                  
+                  <div className="space-y-2 text-[10px] pl-1">
+                    <div className="flex items-start gap-1.5">
+                      <span className="text-emerald-400 font-bold">1.</span>
+                      <span>
+                        Open the{" "}
+                        <a 
+                          href="https://console.firebase.google.com/project/consummate-psyche-wrr5c/authentication/settings" 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="text-emerald-400 hover:underline inline-flex items-center gap-0.5"
+                        >
+                          Firebase Console Auth Settings ↗
+                        </a>
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-start gap-1.5">
+                      <span className="text-emerald-400 font-bold">2.</span>
+                      <span>Go to the <strong>Settings</strong> tab and scroll down to the <strong>Authorized domains</strong> section.</span>
+                    </div>
+
+                    <div className="flex items-start gap-1.5">
+                      <span className="text-emerald-400 font-bold">3.</span>
+                      <span>Click <strong>Add domain</strong> and add the following two domains:</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-black border border-neutral-900 rounded p-3 space-y-2.5 font-mono text-[9px]">
+                    <div className="flex items-center justify-between gap-4 border-b border-neutral-900 pb-1.5">
+                      <span className="text-neutral-400">ais-dev-fhay6cezs6ipels7wnfhnp-278363495848.asia-east1.run.app</span>
+                      <button 
+                        onClick={() => {
+                          navigator.clipboard.writeText("ais-dev-fhay6cezs6ipels7wnfhnp-278363495848.asia-east1.run.app");
+                          alert("Copied development domain!");
+                        }}
+                        className="px-2 py-0.5 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 rounded text-[9px] cursor-pointer transition-colors"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="text-neutral-400">ais-pre-fhay6cezs6ipels7wnfhnp-278363495848.asia-east1.run.app</span>
+                      <button 
+                        onClick={() => {
+                          navigator.clipboard.writeText("ais-pre-fhay6cezs6ipels7wnfhnp-278363495848.asia-east1.run.app");
+                          alert("Copied preview domain!");
+                        }}
+                        className="px-2 py-0.5 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 rounded text-[9px] cursor-pointer transition-colors"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+
+                  <p className="text-[10px] text-neutral-450 italic">
+                    💡 After adding these domains in Firebase, refresh this tab and log in again! Alternatively, you can click <strong>Bypass Login</strong> to use a simulated developer account.
+                  </p>
+                </div>
+              )}
             </motion.div>
           )}
           {successMessage && (
