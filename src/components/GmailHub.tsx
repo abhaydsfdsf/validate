@@ -16,8 +16,7 @@ import {
   Clock,
   ArrowRight
 } from "lucide-react";
-import { auth, googleAuthProvider } from "../lib/firebase.ts";
-import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { auth, googleAuthProvider, signInWithPopup, GoogleAuthProvider } from "../lib/firebase.ts";
 
 interface GmailHubProps {
   googleToken: string | null;

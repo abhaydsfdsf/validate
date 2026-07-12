@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { auth } from "../lib/firebase.ts";
-import { onAuthStateChanged, User } from "firebase/auth";
+import { auth, onAuthStateChanged, User } from "../lib/firebase.ts";
 import { 
   CreditCard, 
   Check, 

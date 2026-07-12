@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { auth, googleAuthProvider } from "../lib/firebase.ts";
-import { signInWithPopup, signOut, onAuthStateChanged, User } from "firebase/auth";
+import { auth, googleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, User } from "../lib/firebase.ts";
 import { 
   Sparkles, 
   Lock, 
